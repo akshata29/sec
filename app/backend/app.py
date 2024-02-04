@@ -15,6 +15,11 @@ from azure.storage.blob import BlobServiceClient, ContentSettings
 load_dotenv()
 app = Flask(__name__)
 
+@app.route("/", defaults={"path": "index.html"})
+@app.route("/<path:path>")
+def static_file(path):
+    return app.send_static_file(path)
+
 @app.route("/getSec", methods=["POST"])
 def getSec():
     step=request.json["step"]

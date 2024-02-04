@@ -326,7 +326,7 @@ def processStep3(selectedCompanies, selectedYears, selectedReportType, llamaLlm,
     # Filing Type hardcoded for now, eventually need to read "Report Type"
     filingType = "10-K"
 
-    secFilingsVectorIndexName = SecDataVectorIndex
+    secFilingsVectorIndexName = SecPdfVectorIndex #SecDataVectorIndex
     vectorStore = createSecFilingsVectorLlamaIndex(SearchService, SearchKey, secFilingsVectorIndexName)
     storageContext = StorageContext.from_defaults(vector_store=vectorStore)
     sentenceSplitter = SentenceSplitter(chunk_size=4000, chunk_overlap=1000)
