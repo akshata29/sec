@@ -97,6 +97,7 @@ const Sec = () => {
     // Compare & Contrast
     const [compareAnswer, setCompareAnswer] = useState<string>();
     const [exampleList, setExampleList] = useState<ExampleModel[]>([{text:'', value: ''}]);
+    const [searchExampleList, setSearchExampleList] = useState<ExampleModel[]>([{text:'', value: ''}]);
     const [exampleLoading, setExampleLoading] = useState(false)
 
     const [showAuthMessage, setShowAuthMessage] = useState<boolean>(false);
@@ -796,6 +797,30 @@ const Sec = () => {
         setExampleList(generatedExamples)
         setExampleLoading(false)
     }
+    const searchSampleQa = async () => {
+        const sampleQuestion = []
+        const  questionList = [] 
+        questionList.push("What is company doing for workforce productivity?")
+        questionList.push("Are there any plans to invest in the cloud and AI technologies?")
+        questionList.push("What is the strategy for Diversity and Inclusion?")
+        questionList.push("Where is the business growth and in what product or service?")
+        questionList.push("Which segments and geographies grew fastest?")
+
+        const shuffled = questionList.sort(() => 0.5 - Math.random());
+        const selectedQuestion = shuffled.slice(0, 5);
+
+        for (const item of selectedQuestion) {
+            if ((item != '')) {
+                sampleQuestion.push({
+                    text: item,
+                    value: item,
+                })
+            } 
+        }
+        const generatedExamples: ExampleModel[] = sampleQuestion
+        setSearchExampleList(generatedExamples)
+        setExampleLoading(false)
+    }
     const onVectoredReportTypeChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
         if (item) {
             setSelectedVectoredReportType(
@@ -1226,11 +1251,9 @@ const Sec = () => {
         }
         if (item?.props.id === "search" || item?.props.id === "compare") {
             getSecFilingVectorData()
-            setSelectedVectoredCompany([])
-            setSelectedVectoredReportType([])
-            setSelectedVectoredYears([])
-        }
-        if (item?.props.id === "compare") {
+            // setSelectedVectoredCompany([])
+            // setSelectedVectoredReportType([])
+            // setSelectedVectoredYears([])
             setSelectedVectoredCompany(['BAC', 'JPM', 'GS', 'MS'])
             setSelectedVectoredYears(['2018', '2019', '2020', '2021', '2022'])
             setSelectedVectoredReportType(['10-K'])
@@ -1239,8 +1262,12 @@ const Sec = () => {
     const onExampleClicked = (example: string) => {
         processSec("4", "No", example);
     };
+    const onSearchExampleClicked = (example: string) => {
+        processSec("3", "No", example);
+    };
     useEffect(() => {
         compareContrastSampleQa();
+        searchSampleQa();
         if (window.location.hostname != "localhost") {
             getUserInfoList();
             setShowAuthMessage(true)
@@ -1769,6 +1796,11 @@ const Sec = () => {
                                                     onSend={question => processSec("3", "No", question)}
                                                 />
                                             </div>
+                                            {exampleLoading ? <div><span>Please wait, Generating Sample Question</span><Spinner/></div> : null}
+                                                <ExampleList onExampleClicked={onSearchExampleClicked}
+                                                    EXAMPLES={
+                                                    searchExampleList
+                                            } />
                                         </div>
                                     </Stack.Item>
                                     <Stack.Item grow={2} styles={stackItemStyles}>

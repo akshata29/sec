@@ -4,6 +4,7 @@ This sample demonstrates performing an analysis on SEC 10-k reports from publicl
 
 ## Updates
 
+* 2/7/2024 - Add sample questions for Search and Compare/Contrast
 * 2/2/2024 - Initial Version
 
 ## Resources
