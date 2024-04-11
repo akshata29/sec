@@ -2,21 +2,21 @@ import datetime
 import logging, json, os
 import uuid
 import azure.functions as func
-import openai
 import os
-from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.docstore.document import Document
-from langchain.chat_models import AzureChatOpenAI, ChatOpenAI
+from langchain_openai import AzureChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from Utilities.envVars import *
 from azure.cosmos import CosmosClient, PartitionKey
-from langchain.callbacks import get_openai_callback
-from langchain.chains.question_answering import load_qa_chain
-from langchain.output_parsers import RegexParser
+from langchain_community.callbacks.manager import get_openai_callback
 from Utilities.secCopilot import performLatestPibDataSearch
 from typing import Sequence
 from Utilities.modelHelper import numTokenFromMessages, getTokenLimit
 from openai import OpenAI, AzureOpenAI
+from langchain import hub
+from langchain.schema.runnable import RunnablePassthrough
+from langchain.schema import StrOutputParser
 
 OpenAiEndPoint = os.environ['OpenAiEndPoint']
 OpenAiEndPoint = os.environ['OpenAiEndPoint']
@@ -47,6 +47,8 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
 
     try:
         symbol = req.params.get('symbol')
+        year = req.params.get('year')
+        reportType = req.params.get('reportType')
         indexName = req.params.get('indexName')
         body = json.dumps(req.get_json())
     except ValueError:
@@ -56,7 +58,7 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
         )
 
     if body:
-        result = ComposeResponse(body, symbol, indexName)
+        result = ComposeResponse(body, symbol, year, reportType, indexName)
         return func.HttpResponse(result, mimetype="application/json")
     else:
         return func.HttpResponse(
@@ -64,7 +66,7 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
              status_code=400
         )
 
-def ComposeResponse(jsonData, symbol, indexName):
+def ComposeResponse(jsonData, symbol, year, reportType, indexName):
     values = json.loads(jsonData)['values']
 
     logging.info("Calling Compose Response")
@@ -73,7 +75,7 @@ def ComposeResponse(jsonData, symbol, indexName):
     results["values"] = []
 
     for value in values:
-        outputRecord = TransformValue(value, symbol, indexName)
+        outputRecord = TransformValue(value, symbol, year, reportType, indexName)
         if outputRecord != None:
             results["values"].append(outputRecord)
     return json.dumps(results, ensure_ascii=False)
@@ -116,7 +118,7 @@ def insertMessage(sessionId, type, role, totalTokens, tokens, response, cosmosCo
     }
     cosmosContainer.create_item(body=aiMessage)
 
-def GetRrrAnswer(history, approach, overrides, symbol, indexName):
+def GetRrrAnswer(history, approach, overrides, symbol, year, reportType, indexName):
     embeddingModelType = overrides.get('embeddingModelType') or 'azureopenai'
     topK = overrides.get("top") or 5
     temperature = overrides.get("temperature") or 0.3
@@ -252,23 +254,6 @@ def GetRrrAnswer(history, approach, overrides, symbol, indexName):
     try:
         logging.info("Execute step 2")
         if (overrideChain == "stuff"):
-            if promptTemplate == '':
-                template = """
-                    You are an AI assistant tasked with answering questions from financial information documents like earning call transcripts and SEC filings. 
-                    Your answer should accurately capture the key information in the context below while avoiding the omission of any domain-specific words. 
-                    Please generate a concise and comprehensive answer 
-                    If you don't know the answer, just say that you don't know. Don't try to make up an answer. 
-                    If the answer is not contained within the text below, say \"I don't know\".
-
-                    {summaries}
-                    Question: {question}
-                """
-            else:
-                template = promptTemplate
-
-            qaPrompt = PromptTemplate(template=template, input_variables=["summaries", "question"])
-            qaChain = load_qa_with_sources_chain(llmChat, chain_type=overrideChain, prompt=qaPrompt)
-
             followupTemplate = """
             Generate three very brief follow-up questions that the user would likely ask next.
             Use double angle brackets to reference the questions, e.g. <>.
@@ -287,37 +272,7 @@ def GetRrrAnswer(history, approach, overrides, symbol, indexName):
 
             """
             followupPrompt = PromptTemplate(template=followupTemplate, input_variables=["context"])
-            followupChain = load_qa_chain(llmChat, chain_type='stuff', prompt=followupPrompt)
         elif (overrideChain == "map_rerank"):
-            outputParser = RegexParser(
-                regex=r"(.*?)\nScore: (.*)",
-                output_keys=["answer", "score"],
-            )
-
-            promptTemplate = """
-            
-            Use the following pieces of context to answer the question. If you don't know the answer, just say that you don't know, don't try to make up an answer.
-
-            In addition to giving an answer, also return a score of how fully it answered the user's question. This should be in the following format:
-
-            Question: [question here]
-            [answer here]
-            Score: [score between 0 and 100]
-
-            Begin!
-
-            Context:
-            ---------
-            {summaries}
-            ---------
-            Question: {question}
-
-            """
-            qaPrompt = PromptTemplate(template=promptTemplate,input_variables=["summaries", "question"],
-                                        output_parser=outputParser)
-            qaChain = load_qa_with_sources_chain(llmChat, chain_type=overrideChain,
-                                        prompt=qaPrompt)
-
             followupTemplate = """
             Generate three very brief follow-up questions that the user would likely ask next.
             Use double angle brackets to reference the questions, e.g. <>.
@@ -331,42 +286,7 @@ def GetRrrAnswer(history, approach, overrides, symbol, indexName):
 
             """
             followupPrompt = PromptTemplate(template=followupTemplate, input_variables=["context"])
-            followupChain = load_qa_chain(llmChat, chain_type='stuff', prompt=followupPrompt)
         elif (overrideChain == "map_reduce"):
-
-            if promptTemplate == '':
-                # qaTemplate = """Use the following portion of a long document to see if any of the text is relevant to answer the question.
-                # Return any relevant text.
-                # {context}
-                # Question: {question}
-                # Relevant text, if any :"""
-
-                # qaPrompt = PromptTemplate(
-                #     template=qaTemplate, input_variables=["context", "question"]
-                # )
-
-                combinePromptTemplate = """
-                    Given the following extracted parts of a long document and a question, create a final answer. 
-                    If you don't know the answer, just say that you don't know. Don't try to make up an answer. 
-                    If the answer is not contained within the text below, say \"I don't know\".
-
-                    QUESTION: {question}
-                    =========
-                    {summaries}
-                    =========
-                    """
-                qaPrompt = combinePromptTemplate
-            else:
-                combinePromptTemplate = promptTemplate
-                qaPrompt = promptTemplate
-
-            combinePrompt = PromptTemplate(
-                    template=combinePromptTemplate, input_variables=["summaries", "question"]
-                )
-
-            
-            qaChain = load_qa_with_sources_chain(llmChat, chain_type=overrideChain, combine_prompt=combinePrompt)
-            
             followupTemplate = """
             Generate three very brief follow-up questions that the user would likely ask next.
             Use double angle brackets to reference the questions, e.g. <>.
@@ -385,41 +305,7 @@ def GetRrrAnswer(history, approach, overrides, symbol, indexName):
 
             """
             followupPrompt = PromptTemplate(template=followupTemplate, input_variables=["context"])
-            followupChain = load_qa_chain(llmChat, chain_type='stuff', prompt=followupPrompt)
         elif (overrideChain == "refine"):
-            refineTemplate = (
-                "The original question is as follows: {question}\n"
-                "We have provided an existing answer, including sources: {existing_answer}\n"
-                "We have the opportunity to refine the existing answer"
-                "(only if needed) with some more context below.\n"
-                "------------\n"
-                "{context_str}\n"
-                "------------\n"
-                "Given the new context, refine the original answer to better "
-                "If you do update it, please update the sources as well. "
-                "If the context isn't useful, return the original answer."
-            )
-            refinePrompt = PromptTemplate(
-                input_variables=["question", "existing_answer", "context_str"],
-                template=refineTemplate,
-            )
-
-            qaTemplate = """
-                Given the following extracted parts of a long document and a question, create a final answer. 
-                If you don't know the answer, just say that you don't know. Don't try to make up an answer. 
-                If the answer is not contained within the text below, say \"I don't know\".
-
-                QUESTION: {question}
-                =========
-                {context_str}
-                =========
-                """
-            qaPrompt = PromptTemplate(
-                input_variables=["context_str", "question"], template=qaTemplate
-            )
-            qaChain = load_qa_with_sources_chain(llmChat, chain_type=overrideChain, question_prompt=qaPrompt, refine_prompt=refinePrompt)
-
-            
             followupTemplate = """
             Generate three very brief follow-up questions that the user would likely ask next.
             Use double angle brackets to reference the questions, e.g. <>.
@@ -438,31 +324,19 @@ def GetRrrAnswer(history, approach, overrides, symbol, indexName):
 
             """
             followupPrompt = PromptTemplate(template=followupTemplate, input_variables=["context"])
-            followupChain = load_qa_chain(llmChat, chain_type='stuff', prompt=followupPrompt)
-
         logging.info("Final Prompt created")
 
-        if indexName == "latestsecfilings":
-            filterData = "symbol eq '" + symbol + "' and filingType eq '" + "10-K" + "'"
+        if indexName == "edgarpdfvector":
+            filterData = "symbol eq '" + symbol + "' and filingYear eq '" + year + "' and filingType eq '" + reportType + "'"
+            logging.info("Filter Data: " + filterData)
             r = performLatestPibDataSearch(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, SearchService, SearchKey, embeddingModelType, 
-                               OpenAiEmbedding, filterData, q, indexName, topK, returnFields=['id', 'content', 'latestFilingDate'])
+                               OpenAiEmbedding, filterData, q, indexName, topK, returnFields=['id', 'content', "docId"])
             
             if r == None:
                 docs = [Document(page_content="No results found")]
             else :
                 docs = [
-                    Document(page_content=doc['content'], metadata={"id": doc['id'], "source": doc['latestFilingDate']})
-                    for doc in r
-                    ]
-        elif indexName == "latestearningcalls":
-            filterData = "symbol eq '" + symbol + "'"
-            r = performLatestPibDataSearch(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiKey, SearchService, SearchKey, embeddingModelType, 
-                               OpenAiEmbedding, filterData, q, indexName, topK, returnFields=['id', 'content', 'callDate'])
-            if r == None:
-                docs = [Document(page_content="No results found")]
-            else :
-                docs = [
-                    Document(page_content=doc['content'], metadata={"id": doc['id'], "source":doc['callDate']})
+                    Document(page_content=doc['content'], metadata={"id": doc['id'], "source": doc['docId']})
                     for doc in r
                     ]
        
@@ -470,26 +344,43 @@ def GetRrrAnswer(history, approach, overrides, symbol, indexName):
         for doc in docs:
             rawDocs.append(doc.page_content)
 
+        if promptTemplate == '':
+            prompt = hub.pull("rlm/rag-prompt")
+        else:
+            prompt = PromptTemplate(template=promptTemplate, input_variables=["context", "question"])
+            
         if overrideChain == "stuff" or overrideChain == "map_rerank" or overrideChain == "map_reduce":
-            thoughtPrompt = qaPrompt.format(question=q, summaries=rawDocs)
+            thoughtPrompt = prompt.format(question=q, context=rawDocs)
         elif overrideChain == "refine":
-            thoughtPrompt = qaPrompt.format(question=q, context_str=rawDocs)
+            thoughtPrompt = prompt.format(question=q, context_str=rawDocs)
         
         with get_openai_callback() as cb:
-            answer = qaChain({"input_documents": docs, "question": lastQuestion}, return_only_outputs=True)
-            fullAnswer = answer['output_text'].replace('ANSWER:', '').replace("Source:", 'SOURCES:').replace("Sources:", 'SOURCES:').replace("NEXT QUESTIONS:", 'Next Questions:')
-            modifiedAnswer = fullAnswer
+            ragChain = (
+                    {"context": RunnablePassthrough(), "question": RunnablePassthrough() }
+                    | prompt
+                    | llmChat
+                    | StrOutputParser()
+                )
+            try:
+                modifiedAnswer = ragChain.invoke({"context": ''.join(rawDocs), "question": q})
+                modifiedAnswer = modifiedAnswer.replace("Answer: ", '')
+            except Exception as e:
+                logging.info("Error in RAG Chain: " + str(e))
+                pass
 
-            # Followup questions
-            followupAnswer = followupChain({"input_documents": docs, "question": q}, return_only_outputs=True)
-            nextQuestions = followupAnswer['output_text'].replace("Answer: ", '').replace("Sources:", 'SOURCES:').replace("Next Questions:", 'NEXT QUESTIONS:').replace('NEXT QUESTIONS:', '').replace('NEXT QUESTIONS', '')
+            ragChainFollowup = (
+                        {"context": RunnablePassthrough() }
+                        | followupPrompt
+                        | llmChat
+                        | StrOutputParser()
+                    )
+            nextQuestions = ragChainFollowup.invoke({"context": ''.join(rawDocs)})
+            logging.info("Next Questions: " + nextQuestions)
             sources = ''                
             if (modifiedAnswer.find("I don't know") >= 0):
                 sources = ''
                 nextQuestions = ''
-            else:
-                sources = sources + "\n" + docs[0].metadata['source']
-
+                
             response = {"data_points": rawDocs, "answer": modifiedAnswer.replace("Answer: ", ''), 
                 "thoughts": f"<br><br>Prompt:<br>" + thoughtPrompt.replace('\n', '<br>'), 
                 "sources": sources.replace("SOURCES:", '').replace("SOURCES", "").replace("Sources:", '').replace('- ', ''), 
@@ -504,11 +395,11 @@ def GetRrrAnswer(history, approach, overrides, symbol, indexName):
         return {"data_points": "", "answer": "Error : " + str(e), "thoughts": "",
                 "sources": '', "nextQuestions": '', "error": str(e)}
 
-def GetAnswer(history, approach, overrides, symbol, indexName):
+def GetAnswer(history, approach, overrides, symbol, year, reportType, indexName):
     logging.info("Getting ChatGpt Answer")
     try:
       if (approach == 'rrr'):
-        r = GetRrrAnswer(history, approach, overrides, symbol, indexName)
+        r = GetRrrAnswer(history, approach, overrides, symbol, year, reportType, indexName)
       else:
           return json.dumps({"error": "unknown approach"})
       return r
@@ -519,7 +410,7 @@ def GetAnswer(history, approach, overrides, symbol, indexName):
             status_code=500
       )
 
-def TransformValue(record, symbol, indexName):
+def TransformValue(record, symbol, year, reportType, indexName):
     logging.info("Calling Transform Value")
     try:
         recordId = record['recordId']
@@ -557,7 +448,7 @@ def TransformValue(record, symbol, indexName):
         approach = data['approach']
         overrides = data['overrides']
 
-        summaryResponse = GetAnswer(history, approach, overrides, symbol, indexName)
+        summaryResponse = GetAnswer(history, approach, overrides, symbol, year, reportType, indexName)
         return ({
             "recordId": recordId,
             "data": summaryResponse

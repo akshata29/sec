@@ -192,8 +192,8 @@ export async function getSec(step:string, reProcess: string, options: AskRequest
   }
   return parsedResponse.values[0].data
 }
-export async function pibChatGptApi(options: ChatRequest, symbol: string, indexName: string): Promise<AskResponse> {
-  const response = await fetch('/pibChat' , {
+export async function secChatGptApi(options: ChatRequest, symbol: string, year:string, reportType:string, indexName: string): Promise<AskResponse> {
+  const response = await fetch('/secChat' , {
       method: "POST",
       headers: {
           "Content-Type": "application/json"
@@ -201,6 +201,8 @@ export async function pibChatGptApi(options: ChatRequest, symbol: string, indexN
       body: JSON.stringify({
         symbol:symbol,
         indexName: indexName,
+        year:year,
+        reportType:reportType,
         postBody: {
           values: [
             {

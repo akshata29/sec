@@ -6,13 +6,12 @@ import github from "../../assets/github.svg"
 import styles from "./Sec.module.css";
 import { BarcodeScanner24Filled } from "@fluentui/react-icons";
 import { Dropdown, IDropdownStyles, IDropdownOption } from '@fluentui/react/lib/Dropdown';
-import { AskResponse, AskRequest, getSec, getPib, getUserInfo, Approaches, getNews, getSocialSentiment, getIncomeStatement, getCashFlow } from "../../api";
-import { pibChatGptApi, ChatRequest, ChatTurn, getAllIndexSessions, getIndexSession, getIndexSessionDetail, deleteIndexSession, renameIndexSession } from "../../api";
+import { AskResponse, AskRequest, getSec, getUserInfo, Approaches } from "../../api";
+import { secChatGptApi, ChatRequest, ChatTurn, getAllIndexSessions, getIndexSession, getIndexSessionDetail, deleteIndexSession, renameIndexSession } from "../../api";
 import { getSecFilingProcessedData, getSecFilingVectoredData, verifyPassword, uploadBinaryFile } from "../../api";
 import { Label } from '@fluentui/react/lib/Label';
 import { Pivot, PivotItem } from '@fluentui/react';
 import { IStackTokens, IStackItemStyles } from '@fluentui/react/lib/Stack';
-import { DefaultPalette } from '@fluentui/react/lib/Styling';
 import { Stocks } from "../../components/Symbols/Stocks";
 import { PrimaryButton } from "@fluentui/react";
 import { ClearChatButton } from "../../components/ClearChatButton";
@@ -89,8 +88,11 @@ const Sec = () => {
     const [vectoredFilingTypes, setVectoredFilingTypes] = useState<any[]>([]);
     const [vectoredCompanies, setVectoredCompanies] = useState<{key: string, text: string;}[]>([]);
     const [selectedVectoredCompany, setSelectedVectoredCompany] = useState<string[]>([]);
+    const [selectedChatCompany, setSelectedChatCompany] = useState<string>('');
     const [selectedVectoredYears, setSelectedVectoredYears] = useState<string[]>([]);
+    const [selectedChatYear, setSelectedChatYear] = useState<string>('');
     const [selectedVectoredReportType, setSelectedVectoredReportType] = useState<string[]>([]);
+    const [selectedChatReportType, setSelectedChatReportType] = useState<string>('');
     const [searchItems, setSearchItems] = useState<SearchItem[]>([]);
     const [answer, setAnswer] = useState<AskResponse>();
 
@@ -101,10 +103,6 @@ const Sec = () => {
     const [exampleLoading, setExampleLoading] = useState(false)
 
     const [showAuthMessage, setShowAuthMessage] = useState<boolean>(false);
-    const [missingSymbol, setMissingSymbol] = useState<boolean>(false);
-    const [companyName, setCompanyName] = useState<string>();
-    const [cik, setCik] = useState<string>();
-    const [researchReport, setResearchReports] = useState<any>();
 
     const lastQuestionRef = useRef<string>("");
     const [activeCitation, setActiveCitation] = useState<string>();
@@ -120,8 +118,6 @@ const Sec = () => {
     const [sessionId, setSessionId] = useState<string>();
     const chatMessageStreamEnd = useRef<HTMLDivElement | null>(null);
     const [selectedDoc, setSelectedDoc] = useState<IDropdownOption>();
-    const [incomeStatement, setIncomeStatement] = useState<any>();
-    const [cashFlow, setCashFlow] = useState<any>();
 
     const searchColumns: IColumn[] = [
         {
@@ -321,12 +317,12 @@ const Sec = () => {
         }
     ]
     const docOptions = [
+        // {
+        //     key: 'latestearningcalls',
+        //     text: 'Earning Calls'
+        // },
         {
-            key: 'latestearningcalls',
-            text: 'Earning Calls'
-        },
-        {
-            key: 'latestsecfilings',
+            key: 'edgarpdfvector',
             text: 'SEC Filings'
         }
     ]
@@ -360,38 +356,6 @@ const Sec = () => {
           name: 'Answer or Summarization',
           fieldName: 'answer',
           minWidth: 700, maxWidth: 900, isResizable: false, isMultiline: true
-        }
-    ]
-    const pressReleasesColumns = [
-        {
-          key: 'releaseDate',
-          name: 'Release Date',
-          fieldName: 'releaseDate',
-          minWidth: 100, maxWidth: 150, isResizable: false, isMultiline: true
-        },
-        {
-          key: 'title',
-          name: 'Press Release Title',
-          fieldName: 'title',
-          minWidth: 200, maxWidth: 300, isResizable: false, isMultiline: true
-        },
-        {
-            key: 'summary',
-            name: 'Press Release Summary',
-            fieldName: 'summary',
-            minWidth: 400, maxWidth: 500, isResizable: false, isMultiline: true
-        },
-        {
-            key: 'sentiment',
-            name: 'Sentiment',
-            fieldName: 'sentiment',
-            minWidth: 100, maxWidth: 150, isResizable: false, isMultiline: true
-        },
-        {
-            key: 'sentimentScore',
-            name: 'Sentiment Score',
-            fieldName: 'sentimentScore',
-            minWidth: 100, maxWidth: 150, isResizable: false, isMultiline: true
         }
     ]
     const stackItemStyles: IStackItemStyles = {
@@ -724,6 +688,13 @@ const Sec = () => {
             );
         }
     }
+    const onChatCompanyChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
+        if (item) {
+            setSelectedChatCompany(item.key as string);
+            getCosmosSession(String(selectedDoc?.key), String(item.key))
+            clearChat();    
+        }
+    }
     const onYearChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
         if (item) {
             setSelectedYears(
@@ -746,6 +717,11 @@ const Sec = () => {
             setSelectedVectoredYears(
                 item.selected ? [...selectedVectoredYears, item.key as string] : selectedVectoredYears.filter(key => key !== item.key),
             );
+        }
+    }
+    const onChatYearChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
+        if (item) {
+            setSelectedChatYear(item.key as string);
         }
     }
     const onReportTypeChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
@@ -828,22 +804,16 @@ const Sec = () => {
             );
         }
     }
+    const onChatReportTypeChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
+        if (item) {
+            setSelectedChatReportType(item.key as string);
+        }
+    }
     const onDocChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
         setSelectedDoc(item);
         clearChat();
-        getCosmosSession(String(item?.key), String(symbol))
+        getCosmosSession(String(item?.key), String(selectedChatCompany))
     }
-    const onSymbolChange = (_ev?: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-        setSymbol(newValue || "");
-        if (newValue == '') {
-          setMissingSymbol(true)
-        }
-        else {
-            setMissingSymbol(false)
-        }
-        getCosmosSession(String(selectedDoc?.key), String(newValue))
-        clearChat();
-    };
     const getUserInfoList = async () => {
         const userInfoList = await getUserInfo();
         if (userInfoList.length === 0 && window.location.hostname !== "localhost") {
@@ -1052,9 +1022,9 @@ const Sec = () => {
         if (sessionName === 'No Sessions found' || sessionName === "" || sessionName === undefined) {
             alert("Select Session to delete")
         }
-        await deleteIndexSession(String(selectedDoc?.key), String(symbol), sessionName)
+        await deleteIndexSession(String(selectedDoc?.key), String(selectedChatCompany), sessionName)
             .then(async (sessionResponse:any) => {
-                getCosmosSession(String(selectedDoc?.key), String(symbol))
+                getCosmosSession(String(selectedDoc?.key), String(selectedChatCompany))
                 clearChat();
         })
 
@@ -1067,7 +1037,7 @@ const Sec = () => {
         else {
             await renameIndexSession(oldSessionName, sessionName)
                 .then(async (sessionResponse:any) => {
-                    getCosmosSession(String(selectedDoc?.key), String(symbol))
+                    getCosmosSession(String(selectedDoc?.key), String(selectedChatCompany))
                     clearChat();
             })
         }
@@ -1089,9 +1059,6 @@ const Sec = () => {
             );
         }
     };
-    const onCustomSecTopicChange = (_ev?: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
-        setCustomSecTopic(newValue || "");
-    };
     const onSessionClicked = async (sessionFromList: any) => {
         //makeApiRequest(sessionFromList.name);
         const sessionName = sessionFromList["Session Name"]
@@ -1099,7 +1066,7 @@ const Sec = () => {
         setOldSessionName(sessionName)
         if (sessionName != "No Session Found") {
             try {
-                await getIndexSession(String(selectedDoc?.key), String(symbol), sessionName)
+                await getIndexSession(String(selectedDoc?.key), String(selectedChatCompany), sessionName)
                 .then(async (sessionResponse:any) => {
                     const sessionId = sessionResponse[0].sessionId
                     const newSession: ChatSession = {
@@ -1169,7 +1136,7 @@ const Sec = () => {
           chainType: 'stuff',
           feature: 'chat',
           indexId: String(selectedDoc?.key),
-          indexType: String(symbol),
+          indexType: String(selectedChatCompany),
           indexName: String(selectedDoc?.text),
           llmModel: 'gpt3.5',
           timestamp: String(new Date().getTime()),
@@ -1227,7 +1194,7 @@ const Sec = () => {
                     chainType: "stuff",
                 }
             };
-            const result = await pibChatGptApi(request, symbol, String(selectedDoc?.key));
+            const result = await secChatGptApi(request, selectedChatCompany, selectedChatYear, selectedChatReportType, String(selectedDoc?.key));
             setAnswers([...answers, [question, result, null]]);
         } catch (e) {
             setError(e);
@@ -1238,25 +1205,27 @@ const Sec = () => {
     const startOrStopSynthesis = async (answerType:string, url: string | null, index: number) => {
     };
     const onTabChange = (item?: PivotItem | undefined, ev?: React.MouseEvent<HTMLElement, MouseEvent> | undefined): void => {
-        if (item?.props.headerText === "Chat Pib") {
+        if (item?.props.headerText === "Chat Sec") {
+            getSecFilingVectorData()
             clearChat()
             setSelectedDoc(docOptions[0])
-            getCosmosSession(docOptions[0]?.key, String(symbol))
+            setSelectedChatCompany(vectoredCompanies[0]?.key)
+            setSelectedChatYear(vectoredFilingYears[0]?.key)
+            setSelectedChatReportType(vectoredFilingTypes[0]?.key)
+            getCosmosSession(docOptions[0]?.key, String(selectedChatCompany))
         } 
-        if (item?.props.headerText === "Chat Gpt") {
-            getCosmosSession("chatgpt", "cogsearchvs")
-        }
         if (item?.props.id === "summarization") {
             getSecFilingData()
         }
         if (item?.props.id === "search" || item?.props.id === "compare") {
             getSecFilingVectorData()
-            // setSelectedVectoredCompany([])
-            // setSelectedVectoredReportType([])
-            // setSelectedVectoredYears([])
-            setSelectedVectoredCompany(['BAC', 'JPM', 'GS', 'MS'])
-            setSelectedVectoredYears(['2018', '2019', '2020', '2021', '2022'])
-            setSelectedVectoredReportType(['10-K'])
+            setSelectedVectoredCompany([])
+            setSelectedVectoredReportType([])
+            setSelectedVectoredYears([])
+            setSelectedChatCompany('')
+            // setSelectedVectoredCompany(['BAC', 'JPM', 'GS', 'MS'])
+            // setSelectedVectoredYears(['2018', '2019', '2020', '2021', '2022'])
+            // setSelectedVectoredReportType(['10-K'])
         }
     };
     const onExampleClicked = (example: string) => {
@@ -1946,8 +1915,8 @@ const Sec = () => {
                         <Stack enableScopedSelectors tokens={outerStackTokens}>
                                 <Stack enableScopedSelectors styles={stackItemStyles} tokens={innerStackTokens}>
                                     <Stack.Item grow={2} styles={stackItemStyles}>
-                                        <Label>Symbol :</Label>&nbsp;
-                                        <TextField onChange={onSymbolChange}  value={symbol} disabled={true}/>
+                                        {/* <Label>Symbol :</Label>&nbsp;
+                                        <TextField onChange={onSymbolChange}  value={symbol} disabled={true}/> */}
                                         <Label>Talk to Document :</Label>&nbsp;
                                         <Dropdown
                                             selectedKey={selectedDoc ? selectedDoc.key : undefined}
@@ -1957,6 +1926,41 @@ const Sec = () => {
                                             options={docOptions}
                                             styles={dropdownStyles}
                                         />
+                                    </Stack.Item>
+                                    <Stack.Item grow={2} styles={stackItemStyles}>
+                                        &nbsp;
+                                        <Label>Symbol :</Label>
+                                        &nbsp;
+                                        <Dropdown
+                                            selectedKey={selectedChatCompany}
+                                            onChange={onChatCompanyChange}
+                                            placeholder="Select Company"
+                                            options={vectoredCompanies}
+                                            disabled={false}
+                                            styles={dropdownShortStyles}
+                                        />
+                                        &nbsp;
+                                        <Label>Filling Year :</Label>
+                                        &nbsp;
+                                        <Dropdown
+                                            selectedKey={selectedChatYear}
+                                            onChange={onChatYearChange}
+                                            placeholder="Select Filing Year"
+                                            options={vectoredFilingYears}
+                                            disabled={false}
+                                            styles={dropdownShortStyles}
+                                        />
+                                        &nbsp;
+                                        <Label>Report Type :</Label>
+                                        &nbsp;
+                                        <Dropdown
+                                            selectedKey={selectedChatReportType}
+                                            onChange={onChatReportTypeChange}
+                                            placeholder="Select Report Type"
+                                            options={vectoredFilingTypes}
+                                            disabled={false}
+                                            styles={dropdownShortStyles}
+                                        />                                    
                                     </Stack.Item>
                                 </Stack>
                         </Stack>
@@ -1978,7 +1982,7 @@ const Sec = () => {
                                     <div className={styles.chatEmptyState}>
                                         <SparkleFilled fontSize={"30px"} primaryFill={"rgba(115, 118, 225, 1)"} aria-hidden="true" aria-label="Chat logo" />
                                         <h3 className={styles.chatEmptyStateTitle}>Chat with your Pitch Book</h3>
-                                        <h4 className={styles.chatEmptyStateSubtitle}>Ask anything on {symbol} from {selectedDoc ? selectedDoc.text : ''}</h4>
+                                        <h4 className={styles.chatEmptyStateSubtitle}>Ask anything on {selectedChatCompany} from {selectedDoc ? selectedDoc.text : ''}</h4>
                                         <div className={styles.chatInput}>
                                             <QuestionInput
                                                 clearOnSend

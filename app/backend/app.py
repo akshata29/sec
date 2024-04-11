@@ -42,6 +42,8 @@ def getSec():
 @app.route("/secChat", methods=["POST"])
 def secChat():
     symbol=request.json["symbol"]
+    year=request.json["year"]
+    reportType=request.json["reportType"]
     indexName=request.json["indexName"]
     postBody=request.json["postBody"]
  
@@ -52,7 +54,7 @@ def secChat():
         url = os.environ.get("SECCHAT_URL")
 
         data = postBody
-        params = {'symbol': symbol, 'indexName': indexName }
+        params = {'symbol': symbol, 'year':year, 'reportType': reportType, 'indexName': indexName }
         resp = requests.post(url, params=params, data=json.dumps(data), headers=headers)
         jsonDict = json.loads(resp.text)
         #return json.dumps(jsonDict)

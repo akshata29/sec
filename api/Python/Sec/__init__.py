@@ -1,8 +1,6 @@
 from Utilities.envVars import *
-from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
-from langchain.utilities import BingSearchAPIWrapper
 from langchain.chains.summarize import load_summarize_chain
 from langchain.docstore.document import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -11,31 +9,28 @@ from langchain.prompts import PromptTemplate
 from datetime import datetime
 from pytz import timezone
 from dateutil.relativedelta import relativedelta
-from Utilities.secCopilot import mergeDocs, createSecCachedDataIndex, findSecCachedData, deletePibData
-from Utilities.secCopilot import deleteSecFilings, createSecSummaries
+from Utilities.secCopilot import mergeDocs, createSecCachedDataIndex, findSecCachedData
+from Utilities.secCopilot import createSecSummaries
 from Utilities.secCopilot import findSecVectorFilingsContent, createSecFilingIndex, findSecFiling
-from Utilities.secCopilot import findSecVectorFilings, indexSecFilingsSections, createSecFilingsVectorIndex, findTopicSummaryInIndex
-from Utilities.secCopilot import deleteSecSummaries, createSecFilingProcessedIndex, createSecFilingsVectorLlamaIndex, indexSecFilingsSectionsLlama
+from Utilities.secCopilot import findSecVectorFilings, findTopicSummaryInIndex
+from Utilities.secCopilot import createSecFilingProcessedIndex, createSecFilingsVectorLlamaIndex, indexSecFilingsSectionsLlama
 from Utilities.fmp import *
-from langchain.chat_models import AzureChatOpenAI, ChatOpenAI
+from langchain_openai import AzureChatOpenAI
 import logging, json, os
 import uuid
 import azure.functions as func
 import time
-from langchain.chains import LLMChain
 from Utilities.secExtraction import EdgarIngestion
 from Utilities.secDocPersist import PersistSecDocs
 from Utilities.azureBlob import getBlob
-from langchain.embeddings.azure_openai import AzureOpenAIEmbeddings
-from langchain.embeddings.openai import OpenAIEmbeddings
-from llama_index.llms import AzureOpenAI
-from llama_index.embeddings import AzureOpenAIEmbedding
-from llama_index.response_synthesizers import TreeSummarize
-from llama_index.text_splitter import SentenceSplitter
-from llama_index import VectorStoreIndex, ServiceContext, StorageContext, Document, SimpleDirectoryReader
-from llama_index.vector_stores.types import ExactMatchFilter, MetadataFilters
-from llama_index.query_engine import SubQuestionQueryEngine
-from llama_index.tools import QueryEngineTool, ToolMetadata
+from llama_index.llms.azure_openai import AzureOpenAI as llamaAzureOpenAI
+from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding as llamaAzureOpenAIEmbedding
+from llama_index.core.response_synthesizers import TreeSummarize
+from llama_index.core.text_splitter import SentenceSplitter
+from llama_index.core import VectorStoreIndex, ServiceContext, StorageContext, Document, SimpleDirectoryReader
+from llama_index.core.vector_stores.types import ExactMatchFilter, MetadataFilters
+from llama_index.core.query_engine import SubQuestionQueryEngine
+from llama_index.core.tools import QueryEngineTool, ToolMetadata
 import asyncio
 import tempfile
 
@@ -728,14 +723,14 @@ def SecSteps(step, reProcess, overrides):
                     max_tokens=tokenLength)               
         logging.info("LLM Setup done")
 
-        llamaLlm = AzureOpenAI(
+        llamaLlm = llamaAzureOpenAI(
                 model="gpt-35-turbo-16k",
                 deployment_name=OpenAiChat16k,
                 api_key=OpenAiKey,
                 azure_endpoint=OpenAiEndPoint,
                 api_version=OpenAiVersion,
                 )
-        llamaEmbeddings = AzureOpenAIEmbedding(
+        llamaEmbeddings = llamaAzureOpenAIEmbedding(
                 model="text-embedding-ada-002",
                 deployment_name=OpenAiEmbedding,
                 api_key=OpenAiKey,
