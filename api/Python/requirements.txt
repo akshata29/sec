@@ -18,8 +18,8 @@ langchain-community==0.0.29
 langsmith==0.0.63
 llama-index==0.10.28
 llama-index-core==0.10.28
-llama-index-llms-openai==1.16.0
-llama-index-embeddings-openai==1.16.0
+llama-index-llms-openai==0.16.0
+llama-index-embeddings-openai==0.16.0
 llama-index-embeddings-openai==0.1.7
 llama-index-embeddings-langchain==0.1.2
 llama-index-embeddings-azure-openai==0.1.6
