@@ -1,5 +1,5 @@
 azure-common==1.1.28
-azure-core==1.26.3
+azure-core==1.28.0
 azure-cognitiveservices-speech==1.33.0
 azure-cosmos==4.4.0b1
 azure-identity==1.15.0
