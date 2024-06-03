@@ -6,7 +6,7 @@ azure-identity==1.15.0
 azure-search-documents==11.4.0
 azure-storage-blob==12.16.0
 backoff==2.2.1
-bs4==0.0.1
+bs4==4.10.0
 cssutils==2.9.0
 fake-useragent==1.2.1
 Faker==19.1.0
