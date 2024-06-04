@@ -874,13 +874,14 @@ def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
                 f"function {context.function_name} has been reached")
 
     try:
+        logging.info("Input parameters : " + str(req.get_json()))
         step = req.params.get('step')
         reProcess= req.params.get('reProcess')
         logging.info("Input parameters : " + step + " " + reProcess)
         body = json.dumps(req.get_json())
     except ValueError:
         return func.HttpResponse(
-             "Invalid body",
+             "Invalid input parameters",
              status_code=400
         )
 
