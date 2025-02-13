@@ -15087,7 +15087,7 @@ export const Stocks = {
         "Cik": "0000860730",
         "Sector": "Health Care",
         "Group": "Health Care Equipment & Services",
-        "Industry": "Health Care Providers & Services",
+        "Industry": "Health Care Equipment & Supplies",
         "SubIndustry": "Health Care Facilities"
       },
       {

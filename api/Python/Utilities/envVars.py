@@ -1,6 +1,5 @@
 import os
 import logging
-from dotenv import load_dotenv
 
 
 try:
@@ -13,10 +12,31 @@ try:
     OpenAiDocConnStr = f"DefaultEndpointsProtocol=https;AccountName={OpenAiDocStorName};AccountKey={OpenAiDocStorKey};EndpointSuffix=core.windows.net"
     OpenAiDocContainer = os.environ['OpenAiDocContainer']
 
-    if "OpenAiChat16k" in os.environ: 
-        OpenAiChat16k = os.environ('OpenAiChat16k')
+    if "TenantId" in os.environ: 
+        TenantId = os.environ['TenantId']
     else:
-        OpenAiChat16k = "chat16k"
+        TenantId = ""
+
+    if "ClientId" in os.environ: 
+        ClientId = os.environ['ClientId']
+    else:
+        ClientId = ""
+
+    if "MI_CLIENTID" in os.environ: 
+        ManagedIdentityClientId = os.environ['MI_CLIENTID']
+    else:
+        ManagedIdentityClientId = ""
+
+    if "ClientSecret" in os.environ: 
+        ClientSecret = os.environ['ClientSecret']
+    else:
+        ClientSecret = ""
+
+    if "BLOB_ACCOUNT_NAME" in os.environ: 
+        BlobAccountName = os.environ['BLOB_ACCOUNT_NAME']
+    else:
+        BlobAccountName = ""
+
 
     if "KbIndexName" in os.environ: 
         KbIndexName = os.environ['KbIndexName']

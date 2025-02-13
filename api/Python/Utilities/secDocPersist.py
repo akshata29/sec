@@ -24,7 +24,6 @@ OpenAiDocConnStr = f"DefaultEndpointsProtocol=https;AccountName={OpenAiDocStorNa
 SecDocContainer = os.environ["SecDocContainer"]
 OpenAiEndPoint = os.environ['OpenAiEndPoint']
 OpenAiChat = os.environ['OpenAiChat']
-OpenAiChat16k = os.environ['OpenAiChat16k']
 OpenAiKey = os.environ['OpenAiKey']
 OpenAiApiKey = os.environ['OpenAiApiKey']
 OpenAiEmbedding = os.environ['OpenAiEmbedding']
@@ -37,7 +36,7 @@ SearchKey = os.environ['SearchKey']
 def GetAllFiles():
     # Get all files in the container from Azure Blob Storage
     # Create the BlobServiceClient object
-    blobList = getAllBlobs(OpenAiDocConnStr, SecDocContainer)
+    blobList = getAllBlobs(TenantId, ClientId, ClientSecret, BlobAccountName, SecDocContainer)
     files = []
     for file in blobList:
         if (file.metadata == None):
@@ -331,7 +330,7 @@ def PersistSecDocs(embeddingModelType, indexType, indexName,  req):
         logging.info(f"Found {len(filesData)} files to embed")
         for file in filesData:
             fileName = file['filename']
-            readBytes = getBlob(OpenAiDocConnStr, SecDocContainer, fileName)
+            readBytes  = getBlob(TenantId, ClientId, ClientSecret, BlobAccountName, SecDocContainer, fileName)
             secDoc = json.loads(readBytes.decode("utf-8"))           
             # For now we will combine Item 1, 1A, 7, 7A into a single field "content"
             # item_1 = TextField(name="item_1")
@@ -377,7 +376,7 @@ def PersistSecDocs(embeddingModelType, indexType, indexName,  req):
                     logging.error("Error chunking and embedding")
                 logging.info("Embedding complete")
                 metadata = {'embedded': 'true', 'indexType': indexType, "indexName": indexName}
-                upsertMetadata(OpenAiDocConnStr, SecDocContainer, fileName, metadata)
+                upsertMetadata(TenantId, ClientId, ClientSecret, BlobAccountName, SecDocContainer, fileName, metadata)
         return "Success"
     except Exception as e:
       logging.error(e)

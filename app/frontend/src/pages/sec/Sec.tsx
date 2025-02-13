@@ -28,6 +28,12 @@ import { Link } from '@fluentui/react/lib/Link';
 import { useDropzone } from 'react-dropzone';
 import { Card, CardFooter } from "@fluentui/react-components";
 import { ExampleList, ExampleModel } from "../../components/Example";
+import { Mic28Filled, Send28Filled } from "@fluentui/react-icons";
+import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import DOMPurify from "dompurify";
+import remarkGfm from 'remark-gfm';
+
 
 type SearchItem = {
     company:  { label: string; };
@@ -74,7 +80,8 @@ const Sec = () => {
     const [processedIndustries, setProcessedIndustries] = useState<{key: string, text: string;}[]>([]);
     const [selectedProcessedIndustry, setSelectedProcessedIndustry] = useState<IDropdownOption>();
     const [processedCompanies, setProcessedCompanies] = useState<{key: string, text: string;}[]>([]);
-    const [processedStocksList, setProcessedStocksList] = useState<{Symbol: string;Sector: string;Industry: string;Year: string;FilingType: string;}[]>([]);
+    //const [processedStocksList, setProcessedStocksList] = useState<{Symbol: string;Sector: string;Industry: string;Year: string;FilingType: string;}[]>([]);
+    const [processedStocksList, setProcessedStocksList] = useState<{Symbol: string; Year: string;FilingType: string;}[]>([]);
     const [selectedProcessedCompany, setSelectedProcessedCompany] = useState<string[]>([]);
     const [selectedProcessedYears, setSelectedProcessedYears] = useState<string[]>([]);
     const [processedFilingYears, setProcessedFilingYears] = useState<any[]>([]);
@@ -98,6 +105,7 @@ const Sec = () => {
 
     // Compare & Contrast
     const [compareAnswer, setCompareAnswer] = useState<string>();
+    const [bingAnswer, setBingAnswer] = useState<string>('');
     const [exampleList, setExampleList] = useState<ExampleModel[]>([{text:'', value: ''}]);
     const [searchExampleList, setSearchExampleList] = useState<ExampleModel[]>([{text:'', value: ''}]);
     const [exampleLoading, setExampleLoading] = useState(false)
@@ -105,6 +113,7 @@ const Sec = () => {
     const [showAuthMessage, setShowAuthMessage] = useState<boolean>(false);
 
     const lastQuestionRef = useRef<string>("");
+    const bingQuestionRef = useRef<string>("");
     const [activeCitation, setActiveCitation] = useState<string>();
     const [activeAnalysisPanelTab, setActiveAnalysisPanelTab] = useState<AnalysisPanelTabs | undefined>(undefined);
     const [selectedAnswer, setSelectedAnswer] = useState<number>(0);
@@ -118,6 +127,17 @@ const Sec = () => {
     const [sessionId, setSessionId] = useState<string>();
     const chatMessageStreamEnd = useRef<HTMLDivElement | null>(null);
     const [selectedDoc, setSelectedDoc] = useState<IDropdownOption>();
+
+    const bingAnswer1 = `
+Below is a table summarizing the key information for HCA Healthcare, Walgreens, Walmart, and John Deere regarding their subsidiaries, key executives, ongoing legal proceedings, corporate governance, and sustainability initiatives. The sources for each piece of information are included in the table.
+
+| Company         | Subsidiaries and Affiliates                        | Key Executives and Board Members        | Ongoing Legal Proceedings              | Corporate Governance Structure        | Sustainability or ESG Initiatives    |
+|-----------------|---------------------------------------------------|-----------------------------------------|----------------------------------------|---------------------------------------|---------------------------------------|
+| HCA Healthcare | Surgery Ventures, various hospitals, and ambulatory sites including surgery centers, free-standing emergency rooms, urgent care centers, and physician clinics ([1](#)) | CEO: Samuel N. Hazen, CFO: William B. Rutherford, SVP & CHRO: Jennifer Berres ([2](#), [3](#)) | Facing multiple class action lawsuits related to a massive data breach affecting personal information of patients ([4](#), [5](#)) | Board of Directors with corporate governance guidelines to enhance corporate responsibility ([6](#)) | Commitment to reducing Scope 1 and 2 emissions by 2030 in line with the Paris Agreement and achieving net-zero GHG emissions by 2050 ([7](#), [8](#)) |
+| Walgreens       | Walgreens U.S., Boots UK, and several pharmaceutical manufacturing and distribution companies ([9](#)) | CEO: Tracey Brown, CFO: Jeff Gruener, SVP & Chief Merchandising Officer: Luke Rauch ([10](#), [11](#)) | Settled multiple lawsuits including a $100 million settlement over allegedly inflated generic drug prices ([12](#)) | Board of Directors with a majority of independent directors and various committees including Audit, Compensation, and Nominating & Governance ([13](#)) | ESG strategy focuses on Healthy Communities, Healthy and Inclusive Workplace, Healthy Planet, and Sustainable Marketplace ([14](#)) |
+| Walmart         | Walmart.com, Sonae Distribuição Brasil, Seiyu Group, and Amigo ([15](#), [16](#)) | CEO: Doug McMillon, EVP & Global CTO: Suresh Kumar ([17](#)) | Settled a $2.5 million wage-and-hour lawsuit over compensation related to Covid-19 screenings ([18](#)) | Board of Directors with diverse perspectives and strong corporate governance practices, including independent directors and an Independent Director ([19](#), [20](#)) | ESG priorities organized into Opportunity, Sustainability, Community, and Ethics & Integrity, with a strong focus on climate, nature, waste, and people in supply chains ([21](#), [22](#)) |
+| John Deere      | Deere-Hitachi, Waratah, Nortrax, Timberjack, Banco John Deere S.A., Bear Flag Robotics, Blue River Technology ([23](#)) | CEO: John C. May, CFO: Rajesh Kalathur, SVP & CTO: Jahmy J. Hindman ([24](#)) | Facing ongoing legal proceedings including antitrust lawsuits related to right-to-repair policies and patent disputes ([25](#)) | Corporate governance policies focused on integrity, quality, commitment, and innovation with a strong emphasis on ethical business conduct ([26](#), [27](#)) | Sustainability initiatives include reducing environmental impact, promoting sustainable practices, and achieving measurable goals through the Leap Ambitions ([28](#), [29](#)) |
+`;
 
     const searchColumns: IColumn[] = [
         {
@@ -200,6 +220,44 @@ const Sec = () => {
         {
           key: '10-K',
           text: '10-K'
+        }
+    ]
+    const dataSources = [
+        {
+          key: 'LexisNexis',
+          text: 'Lexis Nexis'
+        },
+        {
+          key: 'Edgar',
+          text: 'Edgar'
+        },
+        {
+          key: 'Bloomberg',
+          text: 'Bloomberg'
+        },
+        {
+          key: 'Thomson Reuters',
+          text: 'Thomson Reuters'
+        },
+        {
+          key: 'FactSet',
+          text: 'FactSet'
+        },
+        {
+          key: 'Morningstar',
+          text: 'Morningstar'
+        },
+        {
+          key: 'Capital IQ',
+          text: 'Capital IQ'
+        },
+        {
+          key: 'S&P Global',
+          text: 'S&P Global'
+        },
+        {
+          key: 'Refinitiv',
+          text: 'Refinitiv'
         }
     ]
     const secSummaryTopicOptions = [
@@ -511,44 +569,44 @@ const Sec = () => {
                 {
                     stocksList.push({
                         Symbol:document.symbol, 
-                        Sector:document.sector,
-                        Industry:document.industry,
+                        //Sector:document.sector,
+                        //Industry:document.industry,
                         Year:document.year,
                         FilingType:document.filingType,
                         });
                 }
                 setProcessedStocksList(stocksList)
-                const uniqSector = [...new Set(stocksList.map(({Sector})=>Sector))]
-                const sectors = uniqSector.map((sector) => {
-                    return {key: sector, text: sector}
-                })
-                setProcessedSectors(sectors)
-                setSelectedProcessedSector(sectors[0])
-                const filteredIndustry = stocksList.filter(({Sector})=>Sector === String(sectors[0].key))
-                const uniqIndustries = [...new Set(filteredIndustry.map(({Industry})=>Industry))]
-                const industries = uniqIndustries.map((industry) => {
-                    return {key: industry, text: industry}
-                })
-                setProcessedIndustries(industries)
-                setSelectedProcessedIndustry(industries[0])
-                const filteredCompanies = stocksList.filter(({Industry, Sector})=>Industry === String(industries[0].key) && 
-                String(sectors[0]?.key) === Sector)
-                const uniqCompanies = [...new Set(filteredCompanies.map(({Symbol})=>Symbol))]
+                // const uniqSector = [...new Set(stocksList.map(({Sector})=>Sector))]
+                // const sectors = uniqSector.map((sector) => {
+                //     return {key: sector, text: sector}
+                // })
+                //setProcessedSectors(sectors)
+                //setSelectedProcessedSector(sectors[0])
+                // const filteredIndustry = stocksList.filter(({Sector})=>Sector === String(sectors[0].key))
+                // const uniqIndustries = [...new Set(filteredIndustry.map(({Industry})=>Industry))]
+                // const industries = uniqIndustries.map((industry) => {
+                //     return {key: industry, text: industry}
+                // })
+                //setProcessedIndustries(industries)
+                //setSelectedProcessedIndustry(industries[0])
+                //const filteredCompanies = stocksList.filter(({Industry, Sector})=>Industry === String(industries[0].key) && 
+                // String(sectors[0]?.key) === Sector)
+                const uniqCompanies = [...new Set(stocksList.map(({Symbol})=>Symbol))]
                 const companies = uniqCompanies.map((company) => {
                     return {key: company, text: company}
                 })
+                setProcessedCompanies(companies)
                 const uniqYears = [...new Set(stocksList.map(({Year})=>Year))]
                 const years = uniqYears.map((year) => {
                     return {key: year, text: year}
                 })
                 setProcessedFilingYears(years)
-                const uniqFilingType = [...new Set(filteredIndustry.map(({FilingType})=>FilingType))]
+                const uniqFilingType = [...new Set(stocksList.map(({FilingType})=>FilingType))]
                 const filingTypes = uniqFilingType.map((filingType) => {
                     return {key: filingType, text: filingType}
                 })
                 setProcessedFilingTypes(filingTypes)
-                setProcessedIndustries(industries)
-                setProcessedCompanies(companies)
+                //setProcessedIndustries(industries)
             }
             )
         } catch (e) {
@@ -619,26 +677,26 @@ const Sec = () => {
         setSelectedPdfYears(fillingsYears[0]);
         setSelectedPdfReportType(fillingReportType[0]);
     }
-    const onProcessedSectorChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
-        setSelectedProcessedSector(item);
-        const filteredIndustry = processedStocksList.filter(({Sector})=>Sector === String(item?.key))
+    // const onProcessedSectorChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
+    //     setSelectedProcessedSector(item);
+    //     const filteredIndustry = processedStocksList.filter(({Sector})=>Sector === String(item?.key))
 
-        const uniqIndustries = [...new Set(filteredIndustry.map(({Industry})=>Industry))]
-        const industries = uniqIndustries.map((industry) => {
-            return {key: industry, text: industry}
-        })
+    //     const uniqIndustries = [...new Set(filteredIndustry.map(({Industry})=>Industry))]
+    //     const industries = uniqIndustries.map((industry) => {
+    //         return {key: industry, text: industry}
+    //     })
 
-        setProcessedIndustries(industries)
-        setSelectedProcessedIndustry(industries[0])
+    //     setProcessedIndustries(industries)
+    //     setSelectedProcessedIndustry(industries[0])
 
-        const filteredCompanies = processedStocksList.filter(({Industry, Sector})=>Industry === String(industries[0].key) && 
-        String(item?.key) === Sector)
-        const uniqCompanies = [...new Set(filteredCompanies.map(({Symbol})=>Symbol))]        
-        const companies = uniqCompanies.map((company) => {
-            return {key: company, text: company}
-        })
-        setProcessedCompanies(companies)
-    }
+    //     const filteredCompanies = processedStocksList.filter(({Industry, Sector})=>Industry === String(industries[0].key) && 
+    //     String(item?.key) === Sector)
+    //     const uniqCompanies = [...new Set(filteredCompanies.map(({Symbol})=>Symbol))]        
+    //     const companies = uniqCompanies.map((company) => {
+    //         return {key: company, text: company}
+    //     })
+    //     setProcessedCompanies(companies)
+    // }
     const onIndustryChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
         setSelectedIndustry(item);
         const filteredCompanies = Stocks.Tickers.filter(({Industry, Sector})=>Industry === String(item?.key) && 
@@ -653,17 +711,26 @@ const Sec = () => {
         setSelectedPdfYears(fillingsYears[0]);
         setSelectedPdfReportType(fillingReportType[0]);
     }
-    const onProcessedIndustryChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
-        setSelectedProcessedIndustry(item);
-        const filteredCompanies = processedStocksList.filter(({Industry, Sector})=>Industry === String(item?.key) && 
-        String(selectedSector?.key) === Sector)
+    // const onProcessedIndustryChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
+    //     setSelectedProcessedIndustry(item);
+    //     const filteredCompanies = processedStocksList.filter(({Industry, Sector})=>Industry === String(item?.key) && 
+    //     String(selectedSector?.key) === Sector)
 
-        const uniqCompanies = [...new Set(filteredCompanies.map(({Symbol})=>Symbol))]
-        const companies = uniqCompanies.map((company) => {
-            return {key: company, text: company}
-        })
-        setProcessedCompanies(companies)
-    }
+    //     const uniqCompanies = [...new Set(filteredCompanies.map(({Symbol})=>Symbol))]
+    //     const companies = uniqCompanies.map((company) => {
+    //         return {key: company, text: company}
+    //     })
+    //     setProcessedCompanies(companies)
+    // }
+    const onQuestionChange = (_ev: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+        if (newValue) {
+            //processSec("5", "No", newValue)
+            bingQuestionRef.current = newValue;
+        }
+    };
+    const sendQuestion = () => {
+        processSec("5", "No", bingQuestionRef.current)
+    };
     const onCompanyChange = (event?: React.FormEvent<HTMLDivElement>, item?: IDropdownOption): void => {
         if (item) {
             setSelectedCompany(
@@ -973,6 +1040,26 @@ const Sec = () => {
                                 setCompareAnswer(result);
                     })
                     setIsLoading(false);
+                }  else if (step == '5') {
+                    bingQuestionRef.current = question;
+                    request  = {
+                        question : '',
+                        approach: Approaches.ReadDecomposeAsk,
+                        overrides: {
+                            sector: "",
+                            industry: "",
+                            companies: [],
+                            years: [],
+                            reportType: [],
+                            promptTemplate:question
+                        }
+                    }
+                    await getSec(step, reProcess, request)
+                        .then(async (response) => {
+                                const result = JSON.parse(JSON.stringify(response.answer));
+                                setBingAnswer(result);
+                    })
+                    setIsLoading(false);
                 }
 
             } catch (e) {
@@ -1277,7 +1364,7 @@ const Sec = () => {
             <header className={styles.header} role={"banner"}>
                 <div className={styles.headerContainer}>
                     <Link to="https://dataaipdfchat.azurewebsites.net/" target={"_blank"} className={styles.headerTitleContainer}>
-                        <h3 className={styles.headerTitle}>Edgar Analysis</h3>
+                        <h3 className={styles.headerTitle}>KYC Analysis - AI Powered Information Discovery</h3>
                     </Link>
                     <nav>
                         <ul className={styles.headerNavList}>
@@ -1351,10 +1438,16 @@ const Sec = () => {
                                     <Stack.Item grow={2} styles={stackItemStyles}>
                                         <div className={styles.example}>
                                             <p><b>Step 1 : </b> 
-                                              This step focuses on extracting the company profile and the biography of the key executives. For this step
-                                              we will be using the <b>Paid</b> API data services to extract the company profile for the company based on CIK.
-                                              It will also find the key executives of the company. For the latest information on the biography, we will perform
-                                              <b> Public</b> Internet search to find the latest information on the key executives and use GPT to summarize that information.
+                                              This step focuses on extracting the company financial information. For this step
+                                              you can tap into SEC and other <b>Public</b> data sources to get information.   Alternatively you can also use the <b>Paid/Trusted</b> API data services to extract the information on both public and private customers.
+                                              The last option is to upload all the documents (PDF, Excel, PPT, Word) using the upload functionality and build the corpus of the Knowledgestore.
+                                              All the information that is extracted, transformed and summarize is eventually use to ground the features in this CoPilot.
+                                            </p>
+                                        </div>
+                                    </Stack.Item>
+                                    <Stack.Item grow={2}>
+                                        <div className={styles.example}>
+                                            <p><b>Public Data sources</b> 
                                             </p>
                                         </div>
                                     </Stack.Item>
@@ -1434,11 +1527,75 @@ const Sec = () => {
                                             </div>
                                         )
                                     }
-                                    <Stack.Item grow={2} styles={stackItemStyles}>
+                                    <Stack.Item grow={2}>
                                         <div className={styles.example}>
-                                            <b>Optionally</b> 
+                                            <b>Paid/Trusted</b> 
                                             <p>
-                                            Optionally, you can upload the PDF (10-K) report for each selected company to ingest the data into the system.  There are few limitation currently with the Crawling SEC data and uploading the PDF report works best for Compare & Contrast use-case.
+                                            Integrate to the known data sources like LexisNexis, FactSet, Bloomberg, Refinitiv, S&P Capital IQ, etc. to get the data for the companies.
+                                            </p>
+                                        </div>
+                                    </Stack.Item>
+                                    <Stack.Item grow={2} styles={stackItemStyles}>
+                                        <Label>Sector :</Label>
+                                        &nbsp;
+                                        <Dropdown
+                                            selectedKey={selectedSector?.key}
+                                            onChange={onSectorChange}
+                                            placeholder="Select Sector"
+                                            options={sectors}
+                                            disabled={false}
+                                            styles={dropdownShortStyles}
+                                            multiSelect={false}
+                                        />&nbsp;
+                                        <Label>Industry :</Label>
+                                        &nbsp;
+                                        <Dropdown
+                                            selectedKey={selectedIndustry?.key}
+                                            onChange={onIndustryChange}
+                                            placeholder="Select Industry"
+                                            options={industries}
+                                            disabled={false}
+                                            styles={dropdownShortStyles}
+                                            multiSelect={false}
+                                        />
+                                        &nbsp;
+                                        <Label>Symbol :</Label>
+                                        &nbsp;
+                                        <Dropdown
+                                            selectedKey={selectedPdfCompany?.key}
+                                            onChange={onCompanyPdfChange}
+                                            placeholder="Select Company"
+                                            options={companies}
+                                            disabled={false}
+                                            styles={dropdownShortStyles}
+                                        />
+                                        &nbsp;
+                                        <Label>Filling Year :</Label>
+                                        &nbsp;
+                                        <Dropdown
+                                            selectedKey={selectedPdfYears?.key}
+                                            onChange={onYearPdfChange}
+                                            placeholder="Select Filing Year"
+                                            options={fillingsYears}
+                                            disabled={false}
+                                            styles={dropdownShortStyles}
+                                        />
+                                        &nbsp;
+                                        <Label>Data Source :</Label>
+                                        &nbsp;
+                                        <Dropdown
+                                            placeholder="Select Data Source"
+                                            options={dataSources}
+                                            disabled={false}
+                                            styles={dropdownShortStyles}
+                                        />
+                                        <PrimaryButton text="Get Data" onClick={() => processSec("1", "No", "")} disabled={true} />&nbsp;
+                                    </Stack.Item>
+                                    <Stack.Item grow={2}>
+                                        <div className={styles.example}>
+                                            <b>Upload</b> 
+                                            <p>
+                                            Optionally, you can upload the PDF/Excel/Word/Powerpoint documents for each selected company to ingest the data into the system.
                                             </p>
                                         </div>
                                     </Stack.Item>
@@ -1588,30 +1745,6 @@ const Sec = () => {
                                         </div>
                                     </Stack.Item>
                                     <Stack.Item grow={2} styles={stackItemStyles}>
-                                        &nbsp;
-                                        <Label>Sector :</Label>
-                                        &nbsp;
-                                        <Dropdown
-                                            selectedKey={selectedProcessedSector?.key}
-                                            onChange={onProcessedSectorChange}
-                                            placeholder="Select Sector"
-                                            options={processedSectors}
-                                            disabled={false}
-                                            styles={dropdownShortStyles}
-                                            multiSelect={false}
-                                        />&nbsp;
-                                        <Label>Industry :</Label>
-                                        &nbsp;
-                                        <Dropdown
-                                            selectedKey={selectedProcessedIndustry?.key}
-                                            onChange={onProcessedIndustryChange}
-                                            placeholder="Select Industry"
-                                            options={processedIndustries}
-                                            disabled={false}
-                                            styles={dropdownShortStyles}
-                                            multiSelect={false}
-                                        />
-                                        &nbsp;
                                         <Label>Symbol :</Label>
                                         &nbsp;
                                         <Dropdown
@@ -1906,9 +2039,88 @@ const Sec = () => {
                             </Stack>
                     </PivotItem>
                     <PivotItem
-                        headerText="Chat Sec"
+                        headerText="KYC Copilot"
+                        id="compare"
                         headerButtonProps={{
                         'data-order': 5,
+                        }}
+                    >
+                            <Stack enableScopedSelectors tokens={outerStackTokens}>
+                                <Stack enableScopedSelectors styles={stackItemStyles} tokens={innerStackTokens}>
+                                    <Stack.Item grow={2} styles={stackItemStyles}>
+                                        <div className={styles.example}>
+                                            <p><b>Step 5 : </b> 
+                                              This step focuses on pulling the <b>Publicly and Private</b> available data by performing bing search and grounding the information to the company.
+                                              Once the data is crawled, it is used to generate the answers based on the prompts.
+                                            </p>
+                                        </div>
+                                    </Stack.Item>
+                                    <Stack.Item grow={2} styles={stackItemStyles}>
+                                        <div className={styles.edgarTopSection}>
+                                            <h1 className={styles.edgarTitle}>Ask KYC Copilot</h1>
+                                            <div className={styles.edgarQuestionInput}>
+                                                {/* <QuestionInput
+                                                    placeholder="Ask me anything"
+                                                    disabled={isLoading}
+                                                    updateQuestion={bingQuestionRef.current}
+                                                    onSend={question => processSec("5", "No", question)}
+                                                /> */}
+                                                <Stack horizontal className={styles.questionInputContainer}>
+                                                        <TextField
+                                                            className={styles.questionInputTextArea}
+                                                            placeholder="Ask me anything"
+                                                            multiline
+                                                            rows={25}
+                                                            resizable={false}
+                                                            borderless
+                                                            //value={bingQuestionRef.current}
+                                                            onChange={onQuestionChange}
+                                                        />
+                                                        <div className={styles.questionInputButtonsContainer}>
+                                                            <div
+                                                                className={`${styles.questionInputSendButton}`}
+                                                                aria-label="Ask question button"
+                                                                onClick={sendQuestion}
+                                                            >
+                                                                <Send28Filled primaryFill="rgba(115, 118, 225, 1)" />
+                                                            </div>
+                                                        </div>
+                                                </Stack>
+                                            </div>
+                                        </div>
+                                    </Stack.Item>
+                                    <br/>
+                                    
+                                    <Stack.Item grow={2} styles={stackItemStyles}>
+                                        <div className={styles.edgarTopSection}>
+                                            {isLoading && <Spinner label="Generating answer" />}
+                                            {!isLoading && (
+                                                // <div className={styles.edgarQuestionInput}>
+                                                //         <TextField
+                                                //             multiline
+                                                //             rows={25}
+                                                //             borderless
+                                                //             readOnly
+                                                //             value={bingAnswer}
+                                                //         />
+                                                // </div>
+                                                <div className={styles.edgarQuestionInput}>
+                                                    {/* <ReactMarkdown children={DOMPurify.sanitize(bingAnswer)} rehypePlugins={[rehypeRaw]} /> */}
+                                                    <ReactMarkdown>{bingAnswer}</ReactMarkdown>
+                                                    {/* <div className={styles.answerText}>
+                                                        <ReactMarkdown rehypePlugins={[rehypeRaw]}>{bingAnswer}</ReactMarkdown>
+                                                    </div> */}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </Stack.Item>
+                                </Stack>
+                            </Stack>
+                    </PivotItem>
+                    <PivotItem
+                        headerText="Chat Sec"
+                        headerButtonProps={{
+                        'data-order': 6,
                         }}
                     >
                     <div className={styles.root}>

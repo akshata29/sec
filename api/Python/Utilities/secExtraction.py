@@ -24,6 +24,7 @@ from pathos.pools import ProcessPool
 from lxml import html
 from html.parser import HTMLParser
 from Utilities.azureBlob import upsertMetadata, uploadBlob
+from Utilities.envVars import *
 
 regex_flags = re.IGNORECASE | re.DOTALL | re.MULTILINE
 OpenAiDocStorName = os.environ["OpenAiDocStorName"]
@@ -32,7 +33,6 @@ OpenAiDocConnStr = f"DefaultEndpointsProtocol=https;AccountName={OpenAiDocStorNa
 SecDocContainer = os.environ["SecDocContainer"]
 OpenAiEndPoint = os.environ['OpenAiEndPoint']
 OpenAiChat = os.environ['OpenAiChat']
-OpenAiChat16k = os.environ['OpenAiChat16k']
 OpenAiKey = os.environ['OpenAiKey']
 OpenAiApiKey = os.environ['OpenAiApiKey']
 OpenAiEmbedding = os.environ['OpenAiEmbedding']
@@ -1026,7 +1026,7 @@ def EdgarIngestion(req):
                 logging.info("Json file name is " + jsonFileName)
                 uploadBlob(OpenAiDocConnStr, SecDocContainer, series['CIK'] + '\\' + jsonFileName, json.dumps(extractedItems), "application/json")
                 metadata = {'embedded': 'false'}
-                upsertMetadata(OpenAiDocConnStr, SecDocContainer, series['CIK'] + '\\' + jsonFileName, metadata)
+                upsertMetadata(TenantId, ClientId, ClientSecret, BlobAccountName, SecDocContainer, series['CIK'] + '\\' + jsonFileName, metadata)
                 #extractedFilings.append(extractedItems)
 
             logging.info(f'\nItem extraction is completed successfully.')

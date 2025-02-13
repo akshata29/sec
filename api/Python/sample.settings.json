@@ -16,11 +16,17 @@
       "CosmosDatabase":"aoai",
       "CosmosContainer":"chatgpt",
       "OpenAiChat": "", // GPT 3.5 deployment name
-      "OpenAiChat16k": "chat16k",
       "SearchService":"", // Search Service 
       "SearchKey":"", // Search Key
       "BingUrl": "https://api.bing.microsoft.com/v7.0/search",
-      "BingKey": ""
+      "BingKey": "",
+      "SecDocContainer": "edgardocs",
+      "SecSummariesIndex": "edgarsummaries",
+      "SecCachedDataIndex": "edgarcached",
+      "SecDataIndex": "edgardata",
+      "SecProcessedIndex": "edgardataprocessed",
+      "SecDataVectorIndex": "edgardatavector",
+      "SecPdfVectorIndex": "edgarpdfvector"
     },
     "Host": {
       "LocalHttpPort": 7072,

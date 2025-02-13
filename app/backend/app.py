@@ -11,6 +11,7 @@ from azure.search.documents.indexes.models import *
 from azure.search.documents import SearchClient
 from azure.core.credentials import AzureKeyCredential
 from azure.storage.blob import BlobServiceClient, ContentSettings
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 
 load_dotenv()
 app = Flask(__name__)
@@ -123,20 +124,20 @@ def getAllSessions():
     
     try:
         CosmosEndPoint = os.environ.get("CosmosEndPoint")
-        CosmosKey = os.environ.get("CosmosKey")
         CosmosDb = os.environ.get("CosmosDatabase")
         CosmosContainer = os.environ.get("CosmosContainer")
 
-        cosmosClient = CosmosClient(url=CosmosEndPoint, credential=CosmosKey)
+        credentials = ClientSecretCredential(os.environ.get("TENANTID"), os.environ.get("CLIENTID"), os.environ.get("CLIENTSECRET"))
+        cosmosClient = CosmosClient(url=CosmosEndPoint, credential=credentials)
         cosmosDb = cosmosClient.create_database_if_not_exists(id=CosmosDb)
-        CosmosKey = PartitionKey(path="/sessionId")
-        CosmosContainer = cosmosDb.create_container_if_not_exists(id=CosmosContainer, partition_key=CosmosKey, offer_throughput=400)
+        cosmosKey = PartitionKey(path="/sessionId")
+        cosmosContainer = cosmosDb.create_container_if_not_exists(id=CosmosContainer, partition_key=cosmosKey, offer_throughput=400)
 
         cosmosQuery = "SELECT c.sessionId, c.name, c.indexId FROM c WHERE c.type = @type and c.feature = @feature and c.indexType = @indexType"
         params = [dict(name="@type", value=type), 
                   dict(name="@feature", value=feature), 
                   dict(name="@indexType", value=indexType)]
-        results = CosmosContainer.query_items(query=cosmosQuery, parameters=params, enable_cross_partition_query=True)
+        results = cosmosContainer.query_items(query=cosmosQuery, parameters=params, enable_cross_partition_query=True)
         items = [item for item in results]
         #output = json.dumps(items, indent=True)
         return jsonify(items)
@@ -153,21 +154,21 @@ def getAllIndexSessions():
     
     try:
         CosmosEndPoint = os.environ.get("CosmosEndPoint")
-        CosmosKey = os.environ.get("CosmosKey")
         CosmosDb = os.environ.get("CosmosDatabase")
         CosmosContainer = os.environ.get("CosmosContainer")
 
-        cosmosClient = CosmosClient(url=CosmosEndPoint, credential=CosmosKey)
+        credentials = ClientSecretCredential(os.environ.get("TENANTID"), os.environ.get("CLIENTID"), os.environ.get("CLIENTSECRET"))
+        cosmosClient = CosmosClient(url=CosmosEndPoint, credential=credentials)
         cosmosDb = cosmosClient.create_database_if_not_exists(id=CosmosDb)
-        CosmosKey = PartitionKey(path="/sessionId")
-        CosmosContainer = cosmosDb.create_container_if_not_exists(id=CosmosContainer, partition_key=CosmosKey, offer_throughput=400)
+        cosmosKey = PartitionKey(path="/sessionId")
+        cosmosContainer = cosmosDb.create_container_if_not_exists(id=CosmosContainer, partition_key=cosmosKey, offer_throughput=400)
 
         cosmosQuery = "SELECT c.sessionId, c.name FROM c WHERE c.type = @type and c.feature = @feature and c.indexType = @indexType and c.indexId = @indexNs"
         params = [dict(name="@type", value=type), 
                   dict(name="@feature", value=feature), 
                   dict(name="@indexType", value=indexType), 
                   dict(name="@indexNs", value=indexNs)]
-        results = CosmosContainer.query_items(query=cosmosQuery, parameters=params, enable_cross_partition_query=True)
+        results = cosmosContainer.query_items(query=cosmosQuery, parameters=params, enable_cross_partition_query=True)
         items = [item for item in results]
         #output = json.dumps(items, indent=True)
         return jsonify(items)
@@ -183,14 +184,14 @@ def getIndexSession():
     
     try:
         CosmosEndPoint = os.environ.get("CosmosEndPoint")
-        CosmosKey = os.environ.get("CosmosKey")
         CosmosDb = os.environ.get("CosmosDatabase")
         CosmosContainer = os.environ.get("CosmosContainer")
 
-        cosmosClient = CosmosClient(url=CosmosEndPoint, credential=CosmosKey)
+        credentials = ClientSecretCredential(os.environ.get("TENANTID"), os.environ.get("CLIENTID"), os.environ.get("CLIENTSECRET"))
+        cosmosClient = CosmosClient(url=CosmosEndPoint, credential=credentials)
         cosmosDb = cosmosClient.create_database_if_not_exists(id=CosmosDb)
-        CosmosKey = PartitionKey(path="/sessionId")
-        CosmosContainer = cosmosDb.create_container_if_not_exists(id=CosmosContainer, partition_key=CosmosKey, offer_throughput=400)
+        cosmosKey = PartitionKey(path="/sessionId")
+        cosmosContainer = cosmosDb.create_container_if_not_exists(id=CosmosContainer, partition_key=cosmosKey, offer_throughput=400)
 
         cosmosQuery = "SELECT c.id, c.type, c.sessionId, c.name, c.chainType, \
          c.feature, c.indexId, c.IndexType, c.IndexName, c.llmModel, \
@@ -198,7 +199,7 @@ def getIndexSession():
         params = [dict(name="@sessionName", value=sessionName), 
                   dict(name="@indexType", value=indexType), 
                   dict(name="@indexNs", value=indexNs)]
-        results = CosmosContainer.query_items(query=cosmosQuery, parameters=params, enable_cross_partition_query=True,
+        results = cosmosContainer.query_items(query=cosmosQuery, parameters=params, enable_cross_partition_query=True,
                                               max_item_count=1)
         sessions = [item for item in results]
         return jsonify(sessions)
@@ -214,20 +215,20 @@ def deleteIndexSession():
     
     try:
         CosmosEndPoint = os.environ.get("CosmosEndPoint")
-        CosmosKey = os.environ.get("CosmosKey")
         CosmosDb = os.environ.get("CosmosDatabase")
         CosmosContainer = os.environ.get("CosmosContainer")
 
-        cosmosClient = CosmosClient(url=CosmosEndPoint, credential=CosmosKey)
+        credentials = ClientSecretCredential(os.environ.get("TENANTID"), os.environ.get("CLIENTID"), os.environ.get("CLIENTSECRET"))
+        cosmosClient = CosmosClient(url=CosmosEndPoint, credential=credentials)
         cosmosDb = cosmosClient.create_database_if_not_exists(id=CosmosDb)
-        CosmosKey = PartitionKey(path="/sessionId")
-        CosmosContainer = cosmosDb.create_container_if_not_exists(id=CosmosContainer, partition_key=CosmosKey, offer_throughput=400)
+        cosmosKey = PartitionKey(path="/sessionId")
+        cosmosContainer = cosmosDb.create_container_if_not_exists(id=CosmosContainer, partition_key=cosmosKey, offer_throughput=400)
 
         cosmosQuery = "SELECT c.sessionId FROM c WHERE c.name = @sessionName and c.indexType = @indexType and c.indexId = @indexNs"
         params = [dict(name="@sessionName", value=sessionName), 
                   dict(name="@indexType", value=indexType), 
                   dict(name="@indexNs", value=indexNs)]
-        results = CosmosContainer.query_items(query=cosmosQuery, parameters=params, enable_cross_partition_query=True,
+        results = cosmosContainer.query_items(query=cosmosQuery, parameters=params, enable_cross_partition_query=True,
                                               max_item_count=1)
         sessions = [item for item in results]
         sessionData = json.loads(json.dumps(sessions))[0]
@@ -235,7 +236,7 @@ def deleteIndexSession():
         params = [dict(name="@sessionId", value=sessionData['sessionId'])]
         allDocs = CosmosContainer.query_items(query=cosmosAllDocQuery, parameters=params, enable_cross_partition_query=True)
         for i in allDocs:
-            CosmosContainer.delete_item(i, partition_key=i["sessionId"])
+            cosmosContainer.delete_item(i, partition_key=i["sessionId"])
         
         #deleteQuery = "SELECT c._self FROM c WHERE c.sessionId = '" + sessionData['sessionId'] + "'"
         #result = CosmosContainer.scripts.execute_stored_procedure(sproc="bulkDeleteSproc",params=[deleteQuery], partition_key=CosmosKey)
@@ -254,24 +255,24 @@ def renameIndexSession():
     
     try:
         CosmosEndPoint = os.environ.get("CosmosEndPoint")
-        CosmosKey = os.environ.get("CosmosKey")
         CosmosDb = os.environ.get("CosmosDatabase")
         CosmosContainer = os.environ.get("CosmosContainer")
 
-        cosmosClient = CosmosClient(url=CosmosEndPoint, credential=CosmosKey)
+        credentials = ClientSecretCredential(os.environ.get("TENANTID"), os.environ.get("CLIENTID"), os.environ.get("CLIENTSECRET"))
+        cosmosClient = CosmosClient(url=CosmosEndPoint, credential=credentials)
         cosmosDb = cosmosClient.create_database_if_not_exists(id=CosmosDb)
-        CosmosKey = PartitionKey(path="/sessionId")
-        CosmosContainer = cosmosDb.create_container_if_not_exists(id=CosmosContainer, partition_key=CosmosKey, offer_throughput=400)
+        cosmosKey = PartitionKey(path="/sessionId")
+        cosmosContainer = cosmosDb.create_container_if_not_exists(id=CosmosContainer, partition_key=cosmosKey, offer_throughput=400)
 
         cosmosQuery = "SELECT * FROM c WHERE c.name = @sessionName and c.type = 'Session'"
         params = [dict(name="@sessionName", value=oldSessionName)]
-        results = CosmosContainer.query_items(query=cosmosQuery, parameters=params, enable_cross_partition_query=True,
+        results = cosmosContainer.query_items(query=cosmosQuery, parameters=params, enable_cross_partition_query=True,
                                               max_item_count=1)
         sessions = [item for item in results]
         sessionData = json.loads(json.dumps(sessions))[0]
         #selfId = sessionData['_self']
         sessionData['name'] = newSessionName
-        CosmosContainer.replace_item(item=sessionData, body=sessionData)
+        cosmosContainer.replace_item(item=sessionData, body=sessionData)
         return jsonify(sessions)
     except Exception as e:
         logging.exception("Exception in /renameIndexSession")
@@ -283,18 +284,18 @@ def getIndexSessionDetail():
     
     try:
         CosmosEndPoint = os.environ.get("CosmosEndPoint")
-        CosmosKey = os.environ.get("CosmosKey")
         CosmosDb = os.environ.get("CosmosDatabase")
         CosmosContainer = os.environ.get("CosmosContainer")
 
-        cosmosClient = CosmosClient(url=CosmosEndPoint, credential=CosmosKey)
+        credentials = ClientSecretCredential(os.environ.get("TENANTID"), os.environ.get("CLIENTID"), os.environ.get("CLIENTSECRET"))
+        cosmosClient = CosmosClient(url=CosmosEndPoint, credential=credentials)
         cosmosDb = cosmosClient.create_database_if_not_exists(id=CosmosDb)
-        CosmosKey = PartitionKey(path="/sessionId")
-        CosmosContainer = cosmosDb.create_container_if_not_exists(id=CosmosContainer, partition_key=CosmosKey, offer_throughput=400)
+        cosmosKey = PartitionKey(path="/sessionId")
+        cosmosContainer = cosmosDb.create_container_if_not_exists(id=CosmosContainer, partition_key=cosmosKey, offer_throughput=400)
 
         cosmosQuery = "SELECT c.role, c.content FROM c WHERE c.sessionId = @sessionId and c.type = 'Message' ORDER by c._ts ASC"
         params = [dict(name="@sessionId", value=sessionId)]
-        results = CosmosContainer.query_items(query=cosmosQuery, parameters=params, enable_cross_partition_query=True)
+        results = cosmosContainer.query_items(query=cosmosQuery, parameters=params, enable_cross_partition_query=True)
         items = [item for item in results]
         #output = json.dumps(items, indent=True)
         return jsonify(items)
@@ -306,7 +307,7 @@ def getIndexSessionDetail():
 def getSecFilingProcessedData():
     SearchService = os.environ['SearchService']
     SearchKey = os.environ['SearchKey']
-    indexName = os.environ['SecProcessedIndex']
+    indexName = os.environ['SecPdfVectorIndex']
 
     searchClient = SearchClient(endpoint=f"https://{SearchService}.search.windows.net",
         index_name=indexName,
@@ -315,20 +316,27 @@ def getSecFilingProcessedData():
     try:
         r = searchClient.search(  
             search_text="",
-            select=["sector", "industry", "symbol", "year", "filingType"],
+            #select=["sector", "industry", "symbol", "filingYear", "filingType"],
+            select=["symbol", "filingYear", "filingType"],
             semantic_configuration_name="semanticConfig",
             include_total_count=True
         )
         documentList = []
         for document in r:
             try:
-                documentList.append({'sector': document['sector'],
-                                        'industry': document['industry'],
-                                        'symbol': document['symbol'],
-                                        'year': document['year'],
-                                        'filingType': document['filingType']})
+                #documentList.append({'sector': document['sector'],
+                #                        'industry': document['industry'],
+                #                        'symbol': document['symbol'],
+                #                        'year': document['year'],
+                #                        'filingType': document['filingType']})
+                value = {'symbol': document['symbol'],
+                                            'year': document['filingYear'],
+                                            'filingType': document['filingType']}
+                if value not in documentList:
+                    documentList.append(value)                
             except Exception as e:
                 pass
+
         return jsonify({"values" : documentList})
     except Exception as e:
         logging.exception("Exception in /getSecFilingProcessedData")
@@ -440,6 +448,27 @@ def verifyPassword():
 @app.route("/uploadBinaryFile", methods=["POST"])
 def uploadBinaryFile():
    
+    # try:
+    #     if 'file' not in request.files:
+    #         return jsonify({'message': 'No file in request'}), 400
+        
+    #     file = request.files['file']
+    #     fileName = file.filename
+    #     blobName = os.path.basename(fileName)
+
+    #     url = os.environ.get("BlobConnectionString")
+    #     containerName = os.environ.get("BlobPdfContainer")
+    #     blobServiceClient = BlobServiceClient.from_connection_string(url)
+    #     containerClient = blobServiceClient.get_container_client(containerName)
+    #     blobClient = containerClient.get_blob_client(blobName)
+    #     blobClient.upload_blob(file.read(), overwrite=True)
+    #     blobClient.set_blob_metadata(metadata={"embedded": "false", 
+    #                                     "indexType": "cogsearchvs"})
+    #     return jsonify({'message': 'File uploaded successfully'}), 200
+    # except Exception as e:
+    #     logging.exception("Exception in /uploadBinaryFile")
+    #     return jsonify({"error": str(e)}), 500
+
     try:
         if 'file' not in request.files:
             return jsonify({'message': 'No file in request'}), 400
@@ -447,15 +476,20 @@ def uploadBinaryFile():
         file = request.files['file']
         fileName = file.filename
         blobName = os.path.basename(fileName)
-
-        url = os.environ.get("BlobConnectionString")
-        containerName = os.environ.get("BlobPdfContainer")
-        blobServiceClient = BlobServiceClient.from_connection_string(url)
-        containerClient = blobServiceClient.get_container_client(containerName)
+        credentials = ClientSecretCredential(os.environ.get("TENANTID"), os.environ.get("CLIENTID"), os.environ.get("CLIENTSECRET"))
+        blobService = BlobServiceClient(
+                "https://{}.blob.core.windows.net".format(os.environ.get("BLOB_ACCOUNT_NAME")), credential=credentials)
+        containerClient = blobService.get_container_client(os.environ.get("BlobPdfContainer"))
         blobClient = containerClient.get_blob_client(blobName)
+
         blobClient.upload_blob(file.read(), overwrite=True)
         blobClient.set_blob_metadata(metadata={"embedded": "false", 
+                                        "indexName": "",
+                                        "namespace": "", 
+                                        "qa": "No Qa Generated",
+                                        "summary": "No Summary Created", 
                                         "indexType": "cogsearchvs"})
+        #jsonDict = json.dumps(blobJson)
         return jsonify({'message': 'File uploaded successfully'}), 200
     except Exception as e:
         logging.exception("Exception in /uploadBinaryFile")

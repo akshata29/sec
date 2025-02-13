@@ -1,0 +1,16 @@
+-- Run following from /app/frontend directory
+npm run build
+
+-- Run following from /app/backend directory
+-- Docker build
+docker build --tag sec-app:latest .
+
+-- Docker  Push
+echo <PAT_TOKEN> | docker login ghcr.io -u akshata29 --password-stdin
+docker push sec-app:latest
+
+-- Docker Run
+docker run --rm --env-file .dockerenv -p 5004:5004 --name sec-app -it sec-app:latest
+
+-- Deploy
+az webapp config container set --docker-custom-image-name sec-app:latest --name <Name> --resource-group <RG>

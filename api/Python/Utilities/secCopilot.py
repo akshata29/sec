@@ -20,10 +20,12 @@ import logging
 from openai import OpenAI, AzureOpenAI
 from llama_index.vector_stores.azureaisearch import (
     IndexManagement,
-    CognitiveSearchVectorStore,
+    AzureAISearchVectorStore,
 )
 from llama_index.core import VectorStoreIndex, StorageContext, Document
 from azure.search.documents.models import VectorizedQuery
+from azure.search.documents.aio import SearchClient as AsyncSearchClient
+from azure.search.documents.indexes.aio import (SearchIndexClient as AsyncSearchIndexClient)
 
 @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
 # Function to generate embeddings for title and content fields, also used for query embeddings
@@ -81,7 +83,7 @@ def createSecCachedDataIndex(SearchService, SearchKey, indexName):
                     name="semanticConfig",
                     prioritized_fields=SemanticPrioritizedFields(
                         title_field=SemanticField(field_name="secData"), 
-                        prioritized_content_fields=[SemanticField(field_name='secData')]
+                        content_fields=[SemanticField(field_name='secData')]
                     )
                 )])
         )
@@ -162,7 +164,7 @@ def createSecSummaries(SearchService, SearchKey, indexName):
                     name="semanticConfig",
                     prioritized_fields=SemanticPrioritizedFields(
                         title_field=SemanticField(field_name="summary"), 
-                        prioritized_content_fields=[SemanticField(field_name='summary')]
+                        content_fields=[SemanticField(field_name='summary')]
                     )
                 )])
         )
@@ -239,11 +241,11 @@ def createSecFilingProcessedIndex(SearchService, SearchKey, indexName):
                         SearchableField(name="filingType", type=SearchFieldDataType.String,
                                         searchable=True, retrievable=True, facetable=True, analyzer_name="en.microsoft")
             ],
-            semantic_search = SemanticSearch(configurations=[SemanticConfiguration(
+             semantic_search = SemanticSearch(configurations=[SemanticConfiguration(
                     name="semanticConfig",
                     prioritized_fields=SemanticPrioritizedFields(
-                        title_field=SemanticField(field_name="symbol"), 
-                        prioritized_content_fields=[SemanticField(field_name='symbol')]
+                        title_field=SemanticField(field_name="symbol"),
+                        content_fields=[SemanticField(field_name="symbol")]
                     )
                 )])
         )
@@ -308,8 +310,8 @@ def createSecFilingIndex(SearchService, SearchKey, indexName):
                     name="semanticConfig",
                     prioritized_fields=SemanticPrioritizedFields(
                         title_field=SemanticField(field_name="content"), 
-                        prioritized_content_fields=[SemanticField(field_name='content')],
-                        prioritized_keywords_fields=[SemanticField(field_name='sourcefile')]
+                        content_fields=[SemanticField(field_name='content')],
+                        keywords_fields=[SemanticField(field_name='sourcefile')]
                     )
                 )])
         )
@@ -361,6 +363,39 @@ def deleteSecFilings(SearchService, SearchKey, indexName, cik):
     
     return None
 
+def createAsyncSecFilingsVectorLlamaIndex(SearchService, SearchKey, indexName):
+    # Use index client to demonstrate creating an index
+    asyncIndexClient = AsyncSearchIndexClient(
+        endpoint=f"https://{SearchService}.search.windows.net/",
+        credential=AzureKeyCredential(SearchKey),
+    )
+
+    # Use search client to demonstration using existing index
+    asyncSearchClient = AsyncSearchClient(
+        endpoint=f"https://{SearchService}.search.windows.net/",
+        index_name=indexName,
+        credential=AzureKeyCredential(SearchKey),
+    )
+
+    metadata_fields = {
+        "symbol": "symbol",
+        "cik": "cik",
+        "filingYear": "filingYear",
+        "filingType": "filingType",
+    }
+    vectorStore = AzureAISearchVectorStore(
+        search_or_index_client=asyncIndexClient,
+        index_name=indexName,
+        filterable_metadata_field_keys=metadata_fields,
+        index_management=IndexManagement.CREATE_IF_NOT_EXISTS,
+        id_field_key="id",
+        chunk_field_key="content",
+        embedding_field_key="contentVector",
+        metadata_string_field_key="jsonMetadata",
+        doc_id_field_key="docId",
+    )
+    return vectorStore
+
 def createSecFilingsVectorLlamaIndex(SearchService, SearchKey, indexName):
     indexClient = SearchIndexClient(endpoint=f"https://{SearchService}.search.windows.net/",
         credential=AzureKeyCredential(SearchKey))
@@ -371,7 +406,7 @@ def createSecFilingsVectorLlamaIndex(SearchService, SearchKey, indexName):
         "filingYear": "filingYear",
         "filingType": "filingType",
     }
-    vectorStore = CognitiveSearchVectorStore(
+    vectorStore = AzureAISearchVectorStore(
         search_or_index_client=indexClient,
         index_name=indexName,
         filterable_metadata_field_keys=metadata_fields,
@@ -501,6 +536,10 @@ def indexSecFilingsSections(OpenAiEndPoint, OpenAiKey, OpenAiVersion, OpenAiApiK
         logging.info(f"\tIndexed {len(results)} sections, {succeeded} succeeded")
 
 def findSecVectorFilings(SearchService, SearchKey, indexName, cik, symbol, filingYear, filingType, returnFields=["id", "content", "sourcefile"] ):
+
+    # Create the index
+    createSecFilingsVectorLlamaIndex(SearchService, SearchKey, indexName)
+
     searchClient = SearchClient(endpoint=f"https://{SearchService}.search.windows.net",
         index_name=indexName,
         credential=AzureKeyCredential(SearchKey))

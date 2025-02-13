@@ -32,10 +32,12 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.2.3",
-    "react-markdown": "^8.0.6",
+    "react-markdown": "^8.0.7",
     "react-router-dom": "^6.8.1",
     "react-syntax-highlighter": "^15.5.0",
-    "rehype-raw": "^6.1.1"
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^3.0.1",
+    "remark-markdown": "^0.0.1"
   },
   "devDependencies": {
     "@types/dompurify": "^2.4.0",

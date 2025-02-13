@@ -1,0 +1,12 @@
+-- Docker build
+docker build --tag sec-api:latest .
+
+-- Docker  Push
+echo <PAT_TOKEN> | docker login ghcr.io -u akshata29 --password-stdin
+docker push sec-api:latest
+
+-- Docker Run
+docker run --env-file .dockerenv -p 7074:80 --name sec-api -it sec-api:latest
+
+-- Deploy
+az functionapp config container set --image sec-api:latest --name <Name> --resource-group <RG>
